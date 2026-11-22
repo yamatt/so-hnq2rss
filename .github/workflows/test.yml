@@ -1,0 +1,38 @@
+name: Test Steam Watch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/test.yml"
+      - "main.py"
+      - "pyproject.toml"
+      - "uv.lock"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/test.yml"
+      - "main.py"
+      - "pyproject.toml"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+      - name: Run linters
+        run: |
+          uv run ruff check main.py

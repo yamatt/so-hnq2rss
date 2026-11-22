@@ -1,0 +1,56 @@
+name: Build RSS
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/rss.yml"
+      - "main.py"
+  workflow_dispatch:
+
+concurrency:
+  group: "{{ github.workflow }}-{{ github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-rss:
+    name: Build RSS feed
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: "auto"
+      - name: "Set up Python"
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version-file: ".python-version"
+      - name: Install dependencies
+        run: uv sync
+      - name: Download Hot Network Questions
+        run: |
+          curl -f -s -S \
+            -A "GitHub-Actions-HNQ-RSS/1.0" \
+            "https://stackexchange.com/hot-questions-json" \
+            -o $RUNNER_TEMP/hot-questions.json
+      - name: Create RSS
+        timeout-minutes: 5
+        run: |
+          mkdir -p public
+          uv run main.py $RUNNER_TEMP/hot-questions.json public/rss.xml
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
