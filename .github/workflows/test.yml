@@ -1,4 +1,4 @@
-name: Test Steam Watch
+name: Test
 
 on:
   push:
@@ -36,3 +36,28 @@ jobs:
       - name: Run linters
         run: |
           uv run ruff check main.py
+  rss-validator:
+    name: Validate RSS Feed
+    runs-on: ubuntu-slim
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+      - name: "Set up Python"
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version-file: ".python-version"
+      - name: Generate RSS feed
+        run: |
+          mkdir -p ./out
+          uv run main.py tests/hot-questions.json ./out
+      - name: Validate RSS XML structure (Alpine)
+        uses: addnab/docker-run-action@v3
+        with:
+          image: alpine:3.23
+          options: -v ${{ github.workspace }}:/workspace
+          run: |
+            apk add --no-cache libxml2-utils
+            xmllint --noout --schema /workspace/tests/spec/rss_2.0.1.xsd /workspace/out/test.rss || \
+            xmllint --noout /workspace/out/test.rss
